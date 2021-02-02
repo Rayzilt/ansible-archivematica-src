@@ -29,11 +29,10 @@
       - "python-pip"
       - "python2-pip"
 
-## Disable download for now, copy working get-pip.py from repo into /root
-#  - name: "Download get-pip.py"
-#    get_url:
-#      url: "https://bootstrap.pypa.io/get-pip.py"
-#      dest: "/root/get-pip.py"
+  - name: "Download get-pip.py"
+    get_url:
+      url: "https://bootstrap.pypa.io/get-pip.py"
+      dest: "/root/get-pip.py"
 
   - name: "Install pip with get-pip.py"
     command: "python get-pip.py"
