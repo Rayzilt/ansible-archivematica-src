@@ -18,48 +18,45 @@
 
 # ss-configure
 
-- name: "Check for SS user"
+# Check if Storage Service user is present in database
+- name: "Check if Storage Service user is present"
   become: "yes"
-  shell: echo 'select username from auth_user where username="{{ archivematica_src_configure_ss_user }}";'  | {{ archivematica_src_ss_virtualenv }}/bin/python manage.py dbshell | tail -n1
-  args:
-    chdir: "{{ archivematica_src_ss_app }}"
-    executable: /bin/bash
-  environment: "{{ archivematica_src_ss_environment }}"
-  register: ss_user
-  when: archivematica_src_configure_ss|bool
-
-- debug:
-    msg: "The SS user {{ archivematica_src_configure_ss_user }} is already configured: The SS superuser will not be created."
-  when: archivematica_src_configure_ss|bool and ss_user.stdout != ""
-
-- name: "Get SS API Key"
-  shell: >
-    echo "select \`key\` from tastypie_apikey where id in (select id from auth_user where username = '{{ archivematica_src_configure_ss_user }}');"
-    | {{ archivematica_src_ss_virtualenv }}/bin/python manage.py dbshell | tail -n1
+  shell: echo 'select username from auth_user where username="{{ archivematica_src_configure_ss_user }}";' | {{ archivematica_src_ss_virtualenv }}/bin/python manage.py dbshell | tail -n1
   args:
     chdir: "{{ archivematica_src_ss_app }}"
     executable: /bin/bash
   environment: "{{ archivematica_src_ss_environment }}"
   delegate_to: "{{ archivematica_src_configure_ss_url|urlsplit('hostname') }}"
-  become: yes
   remote_user: "{{ archivematica_src_configure_ss_ssh_user | default('artefactual') }}"
-  register: archivematica_src_configure_ss_api_key_temp
+  register: ss_user_check
+  when: archivematica_src_configure_ss|bool
+
+# If Storage Service user is present, get the API key of this user
+- name: "Get Storage Service user API Key"
+  become: yes
+  shell: >
+    echo "select \`key\` from tastypie_apikey where id in (select id from auth_user where username = '{{ archivematica_src_configure_ss_user }}');" | {{ archivematica_src_ss_virtualenv }}/bin/python manage.py dbshell | tail -n1
+  args:
+    chdir: "{{ archivematica_src_ss_app }}"
+    executable: /bin/bash
+  environment: "{{ archivematica_src_ss_environment }}"
+  delegate_to: "{{ archivematica_src_configure_ss_url|urlsplit('hostname') }}"
+  remote_user: "{{ archivematica_src_configure_ss_ssh_user | default('artefactual') }}"
+  register: archivematica_src_configure_ss_api_key
   when: 
      - "archivematica_src_configure_dashboard|bool or archivematica_src_configure_ss|bool"
      - "archivematica_src_configure_ss_api_key is undefined"
+     - ss_user_check.stdout != ""
 
-- set_fact: archivematica_src_configure_ss_api_key="{{ archivematica_src_configure_ss_api_key_temp.stdout }}"
-  when: 
-    - "archivematica_src_configure_dashboard|bool"
-    - "archivematica_src_configure_ss_api_key_temp.stdout is defined"
-
-# Create api-key if not defined and SS user was not already configured
+# Create an API key if user is not present in database
 - set_fact: archivematica_src_configure_ss_api_key={{ 999999999999999999999 | random | to_uuid | hash('md5') }}
   when: 
-    - "archivematica_src_configure_ss_api_key is undefined"
     - "archivematica_src_configure_ss|bool"
+    - "archivematica_src_configure_ss_api_key is undefined"
+    - ss_user_check.stdout == ""
 
-- name: "Create SS superuser"
+# Create a user if user is not present in database
+- name: "Create Storage Service superuser"
   django_manage:
     command: > 
       create_user 
@@ -71,7 +68,9 @@
     app_path: "{{ archivematica_src_ss_app }}"
     virtualenv: "{{ archivematica_src_ss_virtualenv }}"
   environment: "{{ archivematica_src_ss_environment }}"
-  when: archivematica_src_configure_ss|bool and ss_user.stdout == ""
+  when: 
+    - "archivematica_src_configure_ss|bool"
+    - ss_user_check.stdout == ""
 
 # dashboard-configure
 
