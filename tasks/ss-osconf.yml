@@ -69,6 +69,10 @@
   when:
     - ansible_os_family == "RedHat"
 
+- name: Pause for 15 seconds
+  pause:
+    seconds: 15
+
 - name: "Enable SS services (systemd)"
   service:
     name: "{{ item }}"
