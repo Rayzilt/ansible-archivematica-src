@@ -19,35 +19,41 @@
 #
 # Prepare pip
 #
+
 - name: "Common configuration for source installs"
   block:
   - name: "Ensure pip is not installed from packages"
     package:
-      name: "{{ item }}"
+      name:
+        - "python-pip"
+        - "python2-pip"
       state: "absent"
-    with_items:
-      - "python-pip"
-      - "python2-pip"
+
+  - name: "Ensure Python 3 is installed"
+    package:
+      name: "{{ archivematica_src_python_packages }}"
+      state: "present"
 
   - name: "Download get-pip.py"
     get_url:
-      url: "https://bootstrap.pypa.io/get-pip.py"
+      url: "https://bootstrap.pypa.io/pip/get-pip.py"
+      force: "yes"
       dest: "/root/get-pip.py"
 
   - name: "Install pip with get-pip.py"
-    command: "python get-pip.py"
+    command: "{{ archivematica_src_virtualenv_python }} get-pip.py"
     args:
       chdir: "/root/"
 
   - name: "Install virtualenv with pip"
     pip:
-      name: "{{ item }}"
+      name: "virtualenv"
+      executable: "{{ archivematica_src_pip }}"
       state: "latest"
-    with_items:
-      - "virtualenv"
-#
-# Prepare `archivematica_src_dir`
-#
+
+  #
+  # Prepare `archivematica_src_dir`
+  #
 
   - name: "Create archivematica_src_dir"
     file:
@@ -65,11 +71,10 @@
 
   - name: "Install necessary packages required by rpms"
     yum:
-      name: "{{ item }}"
+      name:
+        - "python-virtualenv"
+        - "python-pip"
       state: "present"
-    with_items:
-      - "python-virtualenv"
-      - "python-pip"
 
   - name: "Add AM repos"
     yum_repository:
@@ -86,17 +91,7 @@
 # SELinux configuration
 #
 
-- name: "Install necessary packages required by this ansible role"
-  yum:
-    name: "{{ item }}"
-    state: "latest"
-  with_items:
-    - "libsemanage-python"
-    - "policycoreutils-python"
-  when:
-    - ansible_os_family == "RedHat"
-
-- name: "Configure SELinux httpd permissions "
+- name: "Configure SELinux httpd permissions"
   become: "yes"
   seboolean:
     name: "{{ item }}"

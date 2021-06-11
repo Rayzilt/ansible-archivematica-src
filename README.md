@@ -101,7 +101,6 @@ Note that if something is disabled with the [role variables](#role-variables), i
     - `amsrc-pipeline-dbconf`: Configure database
         - `amsrc-pipeline-dbconf-syncdb`: Only run Django's syncdb/migrations
     - `amsrc-pipeline-websrv`: Configure webserver
-- `amsrc-devtools`: Archivematica devtools install
 - `amsrc-automationtools`: Automation tools install
 - `amsrc-configure`: Create SS superuser & create dashboard admin & register pipeline on SS
 
@@ -117,6 +116,10 @@ Notes regarding role dependencies:
 
 
 Please use Ansible 2.3 or newer with this role.
+
+A number of tasks in this role use the `json_query` filter which needs the JMESPath library installed on the Ansible controller. It can be installed as follows:
+
+    pip install jmespath
 
 
 Example Playbooks

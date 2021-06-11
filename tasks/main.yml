@@ -31,6 +31,20 @@
       defaults: "{{ _archivematica_src_ss_environment }}"
   tags: "always"
 
+# Append SS_GUNICORN_WORKERS=3 only when SS_GUNICORN_WORKERS
+# is not defined in dictionary and MySQL database
+- name: "Append default SS_GUNICORN_WORKERS when using MySQL"
+  set_fact:
+    "{{ item.name }}": "{{ item.dict|combine({item.key: 3}) }}"
+  with_items:
+    - name: "archivematica_src_ss_environment"
+      dict: "{{ archivematica_src_ss_environment }}"
+      key: "SS_GUNICORN_WORKERS"
+  when:
+    - archivematica_src_ss_environment['SS_DB_URL'] is defined
+    - archivematica_src_ss_environment['SS_GUNICORN_WORKERS'] is not defined
+  tags: "always"
+
 - include: "envs-patch-backward-compatibility.yml"
   tags: "always"
 
@@ -64,9 +78,8 @@
 
   - name: "Install necessary packages required by this role"
     package:
-      name: "{{ item }}"
+      name: "{{ ansible_deps }}"
       state: "latest"
-    with_items: "{{ ansible_deps }}"
 
   - name: "Include common.yml common tasks for all components"
     include: "common.yml"
@@ -74,7 +87,6 @@
       - "amsrc-common"
       - "amsrc-ss"
       - "amsrc-pipeline"
-      - "amsrc-devtools"
       - "amsrc-automationtools"
       - "amsrc-fixity"
 
@@ -83,7 +95,7 @@
        archivematica_src_install_ss=='rpm' or
        archivematica_src_install_am|bool or
        archivematica_src_install_am=='rpm'"
- 
+
 
 - name: "Checkout out archivematica-sampledata repository"
   git:
@@ -115,7 +127,7 @@
   when:
     - archivematica_src_install_ss == "rpm"
 
-- name: "Configure storage service"
+- name: "Complete storage service deployment"
   block:
   - include: "ss-db.yml"
     tags:
@@ -129,7 +141,7 @@
     tags:
       - "amsrc-ss"
       - "amsrc-ss-websrv"
-  when: "archivematica_src_configure_ss|bool"
+  when: "archivematica_src_install_ss|bool"
 
 
 #
@@ -180,7 +192,7 @@
   when:
     - archivematica_src_install_am == "rpm"
 
-- name: "Configure AM environment"
+- name: "Complete AM deployment"
   block:
   - include: "pipeline-dbconf.yml"
     tags:
@@ -202,7 +214,7 @@
       - "amsrc-pipeline"
       - "amsrc-pipeline-websrv"
 
-  when: "archivematica_src_configure_dashboard|bool"
+  when: "archivematica_src_install_am|bool"
 
 
 #
@@ -227,15 +239,6 @@
     LC_ALL: "en_US.utf8"
   when: "archivematica_src_install_sample_data|bool"
   become: "no"
-
-#
-# archivematica-devtools
-#
-
-- include: "am-devtools.yml"
-  tags:
-    - "amsrc-devtools"
-  when: "archivematica_src_install_devtools|bool"
 
 
 #

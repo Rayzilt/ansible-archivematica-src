@@ -1,24 +1,7 @@
 - name: "Install required deb packages "
-  apt:
-    name: "{{ item }}"
-    state: present
-  with_items:
-    - "sqlite3"
-    - "moreutils"
-    - "mailutils"
-  when:
-    - ansible_os_family == "Debian"
-
-- name: "Install required rpm packages"
-  apt:
-    name: "{{ item }}"
-    state: installed
-  with_items:
-    - "sqlite"
-    - "moreutils"
-    - "mailx"
-  when:
-    - ansible_os_family == "RedHat"
+  package:
+    name: "{{ archivematica_src_am_fixity_deps }}"
+    state: "present"
 
 - name: "Download code"
   git:
@@ -32,6 +15,8 @@
     chdir: "{{ archivematica_src_dir }}/fixity"
     requirements: "requirements.txt"
     virtualenv: "{{ archivematica_src_fixity_virtualenv }}"
+    virtualenv_command: "{{ archivematica_src_virtualenv }}"
+    virtualenv_python: "{{ archivematica_src_virtualenv_python }}"
     state: "latest"
 
 - name: "Run setup.py"
@@ -46,7 +31,7 @@
      owner: "archivematica"
      group: "archivematica"
      recurse: "yes"
- 
+
 - name: "Create config file"
   template:
      src: "etc/sysconfig/fixity.j2"
@@ -62,7 +47,6 @@
      mode: 0750
      owner: "archivematica"
      group: "archivematica"
-
 
 - name: "Create fixity script"
   template:
